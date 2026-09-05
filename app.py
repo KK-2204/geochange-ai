@@ -513,8 +513,8 @@ if old_file and new_file:
                 """
                 
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    
+                    model="gemini-3.6-flash",
+
                     contents=[img_base, img_recent, prompt]
                 )
                 
