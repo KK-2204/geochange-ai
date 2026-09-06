@@ -527,7 +527,7 @@ if old_file and new_file:
                         contents=image_parts + [prompt],
                     )
                     result_text = response.text
-                except genai_errors.ServerError:
+                except genai_errors.APIError as e1:
                     # gemini-3.6-flash is brand new -- fall back to a well-established
                     # model instead of crashing the demo if it's briefly unavailable.
                     try:
@@ -536,13 +536,14 @@ if old_file and new_file:
                             contents=image_parts + [prompt],
                         )
                         result_text = response.text
-                    except Exception:
+                    except Exception as e2:
                         ai_failed = True
                         result_text = ""
+                        error_detail = f"gemini-3.6-flash: {e1}\n\ngemini-2.5-flash: {e2}"
 
                 if ai_failed:
                     kid_friendly = "AI analysis is temporarily unavailable right now - the numbers above are still accurate."
-                    technical = "The AI explanation call failed on both models. Check the Gemini API status in Streamlit Cloud's logs, or try again shortly."
+                    technical = f"Both AI calls failed. Real error below (this is what to check against your API key / Google AI Studio):\n\n{error_detail}"
                 else:
                     try:
                         kid_friendly, technical = result_text.split("|||")
