@@ -2,6 +2,7 @@
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
+from google.oauth2 import service_account
 import streamlit as st
 from PIL import Image
 import rasterio
@@ -10,6 +11,7 @@ import cv2
 import numpy as np
 import zipfile
 import io
+import json
 import re
 
 # ============================================================
@@ -500,7 +502,17 @@ if old_file and new_file:
 
             # Gemini API Call
             with st.spinner("Generating AI analysis..."):
-                client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+                gcp_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT_JSON"])
+                credentials = service_account.Credentials.from_service_account_info(
+                    gcp_info,
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                )
+                client = genai.Client(
+                    vertexai=True,
+                    project=gcp_info["project_id"],
+                    location="global",
+                    credentials=credentials,
+                )
 
                 prompt = f"""
                 You are GeoChange AI. I am providing two satellite images (Baseline and Recent) and deterministically calculated pixel change metrics:

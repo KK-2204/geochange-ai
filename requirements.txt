@@ -1,6 +1,13 @@
+google-genai
+
+google-auth
+
 streamlit
-opencv-python-headless
-numpy
-rasterio
+
 pillow
-google-genai>=1.51.0
+
+rasterio
+
+opencv-python-headless
+
+numpy
