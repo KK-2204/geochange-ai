@@ -1,5 +1,7 @@
 """GeoChange AI — Streamlit UI (Phase 1: interface + placeholders)."""
 from google import genai
+from google.genai import types
+from google.genai import errors as genai_errors
 import streamlit as st
 from PIL import Image
 import rasterio
@@ -499,30 +501,54 @@ if old_file and new_file:
             # Gemini API Call
             with st.spinner("Generating AI analysis..."):
                 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-                
+
                 prompt = f"""
                 You are GeoChange AI. I am providing two satellite images (Baseline and Recent) and deterministically calculated pixel change metrics:
                 - Water Coverage Change: {water_change}
                 - Vegetation Coverage Change: {veg_change}
                 - Built-up Area Change: {built_change}
-                
+
                 Analyze the images and the hard data. Output your response in exactly two sections separated by a "|||" delimiter.
-                
+
                 Section 1: Write a simple, engaging 3-sentence explanation of what happened here so a 10-year-old can easily understand it.
                 Section 2: Write a dense, highly technical breakdown using geospatial terminology explaining the structural changes and impact.
                 """
-                
-                response = client.models.generate_content(
-                    model="gemini-3.6-flash",
 
-                    contents=[img_base, img_recent, prompt]
-                )
-                
+                def _to_image_part(pil_img):
+                    buf = io.BytesIO()
+                    pil_img.convert("RGB").save(buf, format="PNG")
+                    return types.Part.from_bytes(data=buf.getvalue(), mime_type="image/png")
+
+                image_parts = [_to_image_part(img_base), _to_image_part(img_recent)]
+                ai_failed = False
                 try:
-                    kid_friendly, technical = response.text.split("|||")
-                except ValueError:
-                    kid_friendly = response.text
-                    technical = "Technical details unavailable. Please try again."
+                    response = client.models.generate_content(
+                        model="gemini-3.6-flash",
+                        contents=image_parts + [prompt],
+                    )
+                    result_text = response.text
+                except genai_errors.ServerError:
+                    # gemini-3.6-flash is brand new -- fall back to a well-established
+                    # model instead of crashing the demo if it's briefly unavailable.
+                    try:
+                        response = client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=image_parts + [prompt],
+                        )
+                        result_text = response.text
+                    except Exception:
+                        ai_failed = True
+                        result_text = ""
+
+                if ai_failed:
+                    kid_friendly = "AI analysis is temporarily unavailable right now - the numbers above are still accurate."
+                    technical = "The AI explanation call failed on both models. Check the Gemini API status in Streamlit Cloud's logs, or try again shortly."
+                else:
+                    try:
+                        kid_friendly, technical = result_text.split("|||")
+                    except ValueError:
+                        kid_friendly = result_text
+                        technical = "Technical details unavailable. Please try again."
 
             # Display Kid-Friendly UI
             st.markdown(f"""

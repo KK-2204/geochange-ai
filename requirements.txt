@@ -3,4 +3,4 @@ opencv-python-headless
 numpy
 rasterio
 pillow
-google-genai
+google-genai>=1.51.0
